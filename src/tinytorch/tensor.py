@@ -71,10 +71,32 @@ class Tensor_CP:
             if isinstance(other, Tensor_CP):
                 return Tensor_CP(self.data / other.data)
             else:
-                return Tensor_CP(self.data / other.data)
+                return Tensor_CP(self.data / other)
         
         except ValueError as e:
             raise ValueError(f"Sizes of a matrices does not match: {e}")
+
     # ========================= MatMUL =========================
 
-    
+    def matmul(self, other):
+
+        if isinstance(other, Tensor_CP):
+
+            if self.data.shape[-1] != other.data.shape[0]:
+                raise ValueError(f"Given matrices with innner parts {self.data.shape} and {other.shape} do not match")
+
+            c_shape = tuple([self.data.shape[0], other.data.shape[-1]]) 
+            C = np.zeros(c_shape) 
+
+            # logic of computation
+
+            for i in range(self.data.shape[0]):
+                for j in range(other.data.shape[1]):
+                    for k in range(other.data.shape[0]):
+                        C[i][j] += self.data[i][k] * other.data[k][j]
+                 
+            return Tensor_CP(data=C)
+
+        else:
+            raise ValueError(f"Expected tensor-like object got: {type(other)}")
+            
