@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Any
+from typing import Any, Tuple
 
 class Tensor_CP:
     """
@@ -76,7 +76,7 @@ class Tensor_CP:
         except ValueError as e:
             raise ValueError(f"Sizes of a matrices does not match: {e}")
 
-    # ========================= MatMUL =========================
+    # ========================= MatMUL, Transpose, Reshape =========================
 
     def matmul(self, other):
 
@@ -99,4 +99,54 @@ class Tensor_CP:
 
         else:
             raise ValueError(f"Expected tensor-like object got: {type(other)}")
+
+
+    def transpose(self):
+
+        if self.data.ndim == 2:
+
+            return Tensor_CP(self.data.transpose())
             
+        else:
+            raise ValueError(f"Currently only up to 2 dimaetions are supported, received {self.data.ndim}")
+
+
+    def reshape(self, shape: Tuple[int, int]):
+        """
+        Needed checks: 
+            1. shape sizes multiplication == size of the self.data.shape
+            2. Maximum of one -1 dimension.reshape(-1, 3) 
+            3. -1 only from negatives and only once 
+        """
+        size = self.data.size
+
+        if len(shape) < 2:
+            raise ValueError("Shape expected as Tuple type, got None instead")
+        
+        if -1 not in shape:            
+            prod = 1
+
+            for i in shape: 
+                prod *= i 
+            
+            if prod != size:
+                raise ValueError(f"Cannot reshape a tensor with shape: {self.data.shape} to shape: {shape}")
+
+            else:
+                return Tensor_CP(self.data.reshape(shape))
+
+        elif shape.count(-1) == 1:
+            known_dims = [i for i in shape if i != -1]
+
+            prod = 1
+            for i in known_dims:
+                prod *= i
+
+            if isinstance(size / prod, int):
+
+                last_sh = int(size/prod)
+                shape_r = known_dims.append(last_sh)
+
+                return Tensor_CP(self.data.reshape(tuple(shape_r)))
+        else:
+            raise ValueError(f"Expected only one -1 value got 2 or more in provided shape {shape}")
