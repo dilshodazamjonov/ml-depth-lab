@@ -111,7 +111,7 @@ class Tensor_CP:
             raise ValueError(f"Currently only up to 2 dimaetions are supported, received {self.data.ndim}")
 
 
-    def reshape(self, shape: Tuple[int, int]):
+    def reshape(self, shape: Tuple[int, ...]):
         """
         Needed checks: 
             1. shape sizes multiplication == size of the self.data.shape
@@ -120,10 +120,40 @@ class Tensor_CP:
         """
         size = self.data.size
 
-        if len(shape) < 2:
-            raise ValueError("Shape expected as Tuple type, got None instead")
+
+        if len(shape) < 1:
+            raise ValueError(f"Shape expected as Tuple type with length >= 1 got {len(shape)}")
         
-        if -1 not in shape:            
+        if sum([1 for i in shape if i < -1]) > 0:
+            raise ValueError(f"Negative shape is not supported. Got shape: {shape}")
+        
+        if -1 not in shape and shape[0] != size:
+            raise ValueError(f"Cannot reshape a tensor with shape: {self.data.shape} to shape: {shape}")   
+        
+        if shape.count(-1) == 1:
+            known_dims = [i for i in shape if i > -1]
+            
+
+            idx = shape.index(-1) # index at which 1 should be inserted 
+
+            prod = 1
+            for i in known_dims:
+                prod *= i
+
+            try: 
+               remainder = size % prod
+
+            except ZeroDivisionError:
+                raise ZeroDivisionError(f"Devision by zero encountered, passed shape: {shape}")
+
+            if remainder != 0:
+                raise ValueError(f'Error happened while dealing with -1, shape: {shape}, cannot be reshaped to {self.data.shape}')
+            
+            last_sh = int(size / prod)
+            known_dims.insert(idx, last_sh)
+            return Tensor_CP(self.data.reshape(tuple(known_dims)))
+        
+        elif -1 not in shape:            
             prod = 1
 
             for i in shape: 
@@ -131,22 +161,11 @@ class Tensor_CP:
             
             if prod != size:
                 raise ValueError(f"Cannot reshape a tensor with shape: {self.data.shape} to shape: {shape}")
+            
+            return Tensor_CP(self.data.reshape(shape))
 
-            else:
-                return Tensor_CP(self.data.reshape(shape))
-
-        elif shape.count(-1) == 1:
-            known_dims = [i for i in shape if i != -1]
-
-            prod = 1
-            for i in known_dims:
-                prod *= i
-
-            if isinstance(size / prod, int):
-
-                last_sh = int(size/prod)
-                shape_r = known_dims.append(last_sh)
-
-                return Tensor_CP(self.data.reshape(tuple(shape_r)))
+        
         else:
-            raise ValueError(f"Expected only one -1 value got 2 or more in provided shape {shape}")
+            raise ValueError(f"Expected only one -1 value got 2 or more in provided shape: {shape}")
+        
+        # ======================= Axis Semantics =========================
