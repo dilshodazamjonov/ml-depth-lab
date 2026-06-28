@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build a class called Tensor which will support arithmetic operations, transpose, matmul, slicing, reshaping and broadcasting
+Build a 5 activation layers such as: ReLU, Sigmoid, Tanh, GeLU and SoftMax
 
 ## Why it matters
 
@@ -23,9 +23,12 @@ Tensors are universal Data Structure for ML. They represent the information in a
    ```
 
 ## Mathematics and rules
+
 1. MatMul
 
-$$ C_{i, j} = \sum_k A_{i, k} * B_{i, j} $$
+$$
+C_{i, j} = \sum_k A_{i, k} * B_{i, j}
+$$
 
 #### Yet to be written
 
@@ -39,14 +42,15 @@ $$ C_{i, j} = \sum_k A_{i, k} * B_{i, j} $$
 
 All of the experiments are included in a experiment.ipynb file inside of the 01_tensors
 
-1. Checking matrix multiplication with various arrays and some fail which is expected. 
+1. Checking matrix multiplication with various arrays and some fail which is expected.
 2. Comparing my class performance against PyTorch's matmul -> it was faster than mine, used 100x faster time for computation
 
 Comparion results:
-   ```
+
+```
    Custom: 0.35976630001096055
    NumPy: 0.00021169998217374086
-   ```
+```
 
 ## What I learned
 
