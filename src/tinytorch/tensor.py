@@ -168,4 +168,19 @@ class Tensor_CP:
         else:
             raise ValueError(f"Expected only one -1 value got 2 or more in provided shape: {shape}")
         
-        # ======================= Axis Semantics =========================
+    # ======================= Axis Semantics =========================
+
+    def sum(self, axis=None, keepdims=False):
+        """
+        Sum of Tensor along a specified axis
+        
+        keepdips = True preserves the reduced dimention as size 1, usefull for broadcasting
+        """
+            
+        result = np.sum(self.data, axis=axis, keepdims=keepdims)
+        return Tensor_CP(result)
+    
+    def mean(self, axis=None, keepdims=False):
+        """Mean of Tensor accross all the elements"""
+        
+        return Tensor_CP(np.mean(self.data, axis=axis, keepdims=keepdims))
