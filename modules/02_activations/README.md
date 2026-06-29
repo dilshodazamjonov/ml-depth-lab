@@ -6,21 +6,19 @@ Build a 5 activation layers such as: ReLU, Sigmoid, Tanh, GeLU and SoftMax
 
 ## Why it matters
 
-Tensors are universal Data Structure for ML. They represent the information in a multidimention allowing to make us fast computations and transformations on them.
+Activation layers are a key component in DeepLearning model. Without it model would just get an input as a Tensor and return that Tensor with no transformations. Activation layers are the parts in that pipeline which help to make a predictions by transforming, changing the passed data.
+
+Concept of activation layers and where they lie during a whole workflow:  
+
+![1782647813661](image/README/1782647813661.png)
 
 ## Core concepts
 
-1. Transpose of a matrix with shape `[A, B]` is a matrix that has a same elements with the shape of `[B, A]`
-2. Reshape is a method for changing the shape of a matrix
-3. `MatMul` vs `__mul__` -> `__mul__` multiplies each of element at A at the same indices with the same indices at B.
-   `MatMul` algorithm for computation:
-   ```
-    1. Create a tensor filled with 0s and shape of a [i,j] where i, j are outer dimentions of A and B respectively
-    2. Loop through A from index 0 till A.shape[0]
-    3. Loop through B from index 0 till B.shape[-1]
-    4. Loop through from A.shape[-1] and B.shape[0] as inner radiuses must be equal
-    5. Compute the sum of products for each index at A[i, k] and B[k, j]
-   ```
+1. ReLU.forward(): Sparsing data through zeroing negatives. Helps with feature selection and reduce computation time 
+2. Sigmoid.forward(): Mapping to (0, 1) for probabilities 
+3. Tanh.forward(): Hyperbolic tangent, zero-centered activation for better gradients
+4. GELU.forward(): Smooth non-linearity for transformers
+5. Softmax.forward(): Probability distributions with numerical stability
 
 ## Mathematics and rules
 
