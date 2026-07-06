@@ -22,13 +22,14 @@ Concept of activation layers and where they lie during a whole workflow:
 
 ## Mathematics and rules
 
-1. MatMul
+1. ReLU (Rectified Linear Unit) - replace the negatives with 0, math formula being: 
 
-$$
-C_{i, j} = \sum_k A_{i, k} * B_{i, j}
-$$
+$$ f(x) = \max(0, x) $$
 
-#### Yet to be written
+2.
+
+
+# Yet to be written
 
 ## What I implemented
 
