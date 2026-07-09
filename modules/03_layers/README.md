@@ -2,56 +2,28 @@
 
 ## Goal
 
-Build a 5 activation layers such as: ReLU, Sigmoid, Tanh, GeLU and SoftMax
+Is to build 3 Layers: Linear($y = xW + b$), Dropout and Sequential layers, so in the end it's possible to make `Sequential(Linear(784, 256), ReLU(), Linear(256, 10))`
+
+Implement everything with methods of `forward()` and `parameters()`
 
 ## Why it matters
 
-Activation layers are a key component in DeepLearning model. Without it model would just get an input as a Tensor and return that Tensor with no transformations. Activation layers are the parts in that pipeline which help to make a predictions by transforming, changing the passed data.
-
-Concept of activation layers and where they lie during a whole workflow:  
-
-![1782647813661](image/README/1782647813661.png)
+Layers are what make the neural networks work, it adds to a model weights and makes predictions via activations layers.
 
 ## Core concepts
 
-1. ReLU.forward(): Sparsing data through zeroing negatives. Helps with feature selection and reduce computation time 
-2. Sigmoid.forward(): Mapping to (0, 1) for probabilities 
-3. Tanh.forward(): Hyperbolic tangent, zero-centered activation for better gradients
-4. GELU.forward(): Smooth non-linearity for transformers
-5. Softmax.forward(): Probability distributions with numerical stability
+1. `Linear layer` applies $y = x*Weight + bias$ and outputs the result as a Tensor. Bias can be ignored if parameter bias set to False
+2. `Dropout layer`
+3. `Sequential layer`
 
 ## Mathematics and rules
 
-1. ReLU (Rectified Linear Unit) - replace the negatives with 0, math formula being: 
+1. `Linear Layer`. For weight initialization we use formula: 
+$$ \sigma = \sqrt{\frac{1}{InFeats}} $$
+This initialization known as a `LeCun initialization` - it shrinks a random variable proprtionally to how many inputs the layer has(Normal distribution)
 
-$$ f(x) = \max(0, x) $$
-
-2. Sigmoid - Transforms values between 0 and 1 fits good for transforming data into raw probabilities, formula: 
-
-$$ f(x)_{\text{[positive mask]}} = \frac{1}{1 + \exp^{-x}} $$
-$$ f(x)_{\text{[negative mask]}} = \frac{\exp_z}{1 + \exp_z} $$ 
-
-where $\exp_z = \exp^{z[\text{negativemask}]}$
-
-3. Tanh - zero-centered needs, formula: 
-$$ \tanh(x) = \frac{\exp^x - \exp^{-x}}{\exp^x + \exp^{-x}} $$
-
-4. GELU (Gaussian Error Linear Unit)
-Math Formula: 
-
-$$ GeLU(X) = \sigma (X * 1.702) * X $$
-
-5. Softmax - Turnes the given tensor to a distribution probabilities, where sum of them becomes 1. This makes it essensial for the multiclass classification 
-
-Algorithm: 
-* Identify the max from the given axis 
-* Substract it from the Tensor, and get X_shifted
-* Get the exponent of that shifted x 
-* Sum up the exponents and finally to the result devide the exp_values / exp_sum 
-
-Formula is: 
-
-$$ Softmax(x)_i = \frac{\exp(x_i - \max(x))}{\sum_j{\exp(x_j - \max{x})}} = \frac{\exp(x_i)}{\exp(\max(x))} : \frac{\sum_j{\exp(x_j)}}{\exp(\max(x))} = \frac{\exp(x_i)} {\sum_j{\exp(x_j)}} $$ 
+---
+# TODO
 
 ## What I implemented
 
@@ -82,22 +54,9 @@ What I learnt:
 
 ## When to use which? 
 
-For Hidden Layers: 
-* Default: `ReLU` - fast, no vanishing gradients, creates sparsity
-* Transformers: `GeLU` - smooth, better gradient flow, the de-facto choice in `GPT/BERT`
-* Recurrent Networks: `Tanh` - zero-weighed, plays well with repeated weighed applicaitons
-* When `ReLU` is dying on you: `LeakyReLU`, `ELU`, `Swish`
-
-For Output Layers: 
-* In `binary classification`: `Sigmoid` - outputs [0, 1] probabilities
-* Multi-Class classification: `Softmax` - outputs multiple probabilities in range of [0, 1] where probability distribution sums up to 1
-* Regression: None - leave the linear output alone
-  
-Computational cost (relative to ReLU):
-* ReLU - 1x
-* `Sigmoid / Tanh` - 3-4x (one exponential per element) 
-* `GELU`: 4–5x (exponential plus the approximation polynomial)
-* `Softmax` - 5x+ (exponential, sum-reduction, division)
+1. `LeCun initialization` - designed specifically for SELU and TanH activation functions.
+2. `Xavier/Glorot initialization` - designed for Tanh and Sigmoid fucntions
+3. `He/Kaiming initialization` - designed for ReLU or Leaky ReLU activations.
 
 ## Resources
 
