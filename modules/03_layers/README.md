@@ -13,14 +13,40 @@ Layers are what make the neural networks work, it adds to a model weights and ma
 ## Core concepts
 
 1. `Linear layer` applies $y = x*Weight + bias$ and outputs the result as a Tensor. Bias can be ignored if parameter bias set to False
-2. `Dropout layer`
+2. `Dropout layer` is a regularization technique which turns off temporarily specific percentage of neurons in our neural network in order to prevent overfitting. Works only during training and all neurons are then turned back on during validation and test
 3. `Sequential layer`
 
 ## Mathematics and rules
 
-1. `Linear Layer`. For weight initialization we use formula: 
-$$ \sigma = \sqrt{\frac{1}{InFeats}} $$
+1. `Linear Layer`. For
+* Weight initialization we use formula: 
+$$ \sigma = \sqrt{\frac{1}{\text{InFeats}}} $$
 This initialization known as a `LeCun initialization` - it shrinks a random variable proprtionally to how many inputs the layer has(Normal distribution)
+* Bias initialized at 0 because there is no gain from randomizing it.
+
+![alt text](image.png)
+
+2. `Dropout Layer`. Formula of a scaling unit: 
+
+$$ \text{scale} = \frac{1}{1-p} $$
+Algorithm: 
+
+```python
+Edge Case Checks: 
+    If not training or prob == DropoutMinProb -> return the same result with no transformation
+    If prob == DropoutMaxProb -> return the all zeros Tensor with shape of X.data.shape
+
+    else:
+        1. keep_prob = 1 - prob
+        2. maskout the values in X where p < keep_prob(fill them with true)
+        3. create a mask_tensor -> as type float32
+        4. scale = Tensor(np.array(1 / keep_prob))
+        5. compute the output = X * mask_tensor * scale
+        6. Return Output
+```
+
+3. `Sequencial Layer`.
+
 
 ---
 # TODO
