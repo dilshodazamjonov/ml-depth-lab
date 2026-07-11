@@ -8,6 +8,9 @@ class ReLU_CP:
         result  = np.maximum(0.00, X.data)
         return Tensor_CP(result)
 
+    def parameters(self) -> list:
+        return []
+
     def __call__(self, X:Tensor_CP):
         return self.forward(X=X)
 
@@ -32,6 +35,10 @@ class Sigmoid_CP:
         result_data[neg_mask] = exp_z / (1.0 + exp_z)
 
         return Tensor_CP(result_data)
+    
+    def parameters(self) -> list:
+        return []
+
 
     def __call__(self, X:Tensor_CP) -> Tensor_CP:
         return self.forward(X=X)
@@ -61,6 +68,10 @@ class GeLU_CP:
         return Sigmoid_CP()(X * 1.702) * X
     def __call__(self, X: Tensor_CP) -> Tensor_CP:
         return self.forward(X=X)
+    
+    def parameters(self) -> list:
+        return []
+
     def backward(self, grad: Tensor_CP):
         # Stub — autograd adds gradient computation later
         pass
@@ -84,6 +95,9 @@ class Softmax_CP():
 
         result = exp_values / exp_sum
         return result
+    
+    def parameters(self) -> list:
+        return []
 
     def __call__(self, X: Tensor_CP, dim: int = -1) -> Tensor_CP:
         return self.forward(X=X, dim=dim)

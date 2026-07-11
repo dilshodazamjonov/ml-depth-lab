@@ -1,8 +1,15 @@
-from typing import Any
+from typing import Any, Protocol
 
 from .tensor import Tensor_CP
 import numpy as np
 
+class Layer(Protocol):
+    """A layer class to avoid type errors inside of a class"""
+    def forward(self, X: Tensor_CP) -> Tensor_CP:
+        ...
+
+    def parameters(self) -> list:
+        ... 
 
 class Linear_CP:
 
@@ -34,7 +41,7 @@ class Linear_CP:
 
         return output
 
-    def parameters(self) -> list:
+    def parameters(self) -> list[Tensor_CP]:
         """Return all available parameters"""
 
         params = [self.weight]
@@ -46,15 +53,16 @@ class Linear_CP:
         """Allow layer to be called like a function"""
 
         return self.forward(X, *args, **kwds)
-    
-DROPOUT_MIN_PROB = 0.3
-DROPOUT_MAX_PROB = 0.4
+
 
 class Dropout_CP:
 
     def __init__(self, p=0.5) -> None:
-        self.p = p
-
+        
+        if 0 <= p < 1:
+            self.p = p
+        else:
+            raise ValueError(f"Passed parameter p outside of probability range. Expected between [0, 1) got {p}")
 
     def forward(self, X: Tensor_CP, training: bool=True):
         """
@@ -62,18 +70,14 @@ class Dropout_CP:
         For scaling using `1 / (1 -p)` to preserve expected magnitude
         """
 
-        if not training or self.p == DROPOUT_MIN_PROB:
+        if not training or self.p == 0:
             # If the mode is set to inference or no dropout then pass the X unchanged
             return X
-
-        if self.p == DROPOUT_MAX_PROB:
-            # Drop everyhting(preserve requires_grad for gradient flow)
-            return Tensor_CP(np.zeros_like(X.data))
 
         # applying a dropout during training
         keep_prob = 1 - self.p
 
-        # Create a random mask: Treu where we keep elements 
+        # Create a random mask: True where we keep elements 
         mask = np.random.random(X.data.shape) < keep_prob
 
         # apply mask and scale using Tensor operations to preserve gradients
@@ -85,19 +89,44 @@ class Dropout_CP:
 
         return output
 
-    def __call__(self, X: Tensor_CP, training, *args: Any, **kwds: Any) -> Any:
-        """Allow later to be called like a function"""
+    def parameters(self) -> list:
+        return []
+    
+    def __call__(self, X: Tensor_CP, training: bool = True, *args: Any, **kwds: Any) -> Any:
+        """Allow layer to be called like a function"""
 
         return self.forward(X, training)
 
+class Sequential:
+    """Container that chains layers sequentially."""
+    def __init__(self, *layers: Layer) -> None:
+        """Initialize which layers to chain together"""
 
+        if len(layers) == 1 and isinstance(layers[0], (tuple, list)):
+            self.layers = list(layers[0])
+        else:
+            self.layers = list(layers)
 
+    def forward(self, X: Tensor_CP) -> Tensor_CP:
+        """Run every layer with its forward method."""
 
+        for layer  in self.layers:
+            X = layer.forward(X)
 
+        return X
 
+    def parameters(self) -> list[Tensor_CP]:
+        """Return the parameters of a Sequential layers"""
+        params = []
+        
+        for layer in self.layers:
+            params.extend(layer.parameters())
 
-
-
+        return params
+    
+    def __call__(self, X: Tensor_CP, *args: Any, **kwds: Any) -> Any:
+        
+        return self.forward(X=X)
 
 
 
