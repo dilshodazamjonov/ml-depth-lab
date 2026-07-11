@@ -44,46 +44,73 @@ Edge Case Checks:
         5. compute the output = X * mask_tensor * scale
         6. Return Output
 ```
+Why do we scale? 
 
-3. `Sequencial Layer`.
+Because when some neurons are turned off during training, others should keep up with the same power, hence multiplying remaining neurons with $\frac{1}{1-p}$ multiplies alive neuros to work harder. This results in equal sums from training and inference.
 
-
----
-# TODO
+3. `Sequencial Layer`. Is a Container which sequentially runs layers one by one.
 
 ## What I implemented
 
-1. Classes: ReLU, GeLU, Sigmoid, Tanh, Softmax each with the methods of forward and `__call__` and a placeholder for the method called `backward`
+Classes: 
+1. `Layer`- A base class to prevent type erros 
+2. `Linear_CP` - Class for linear layer to work
+3. `Dropout_CP` - Class for Dropout layer
+4. `Sequential` - Class that orchestrates all the layers 
+
+Each was implemented with `forward, parameters and __call__` methods
 
 ## Experiment
 
-All of the experiments are included in the experiment.ipynb file inside of 02_activations.
+All experiments are included in the `experiment.ipynb` file inside `03_layers`.
 
-Each activation is tested by feeding the same input into both my `_CP` implementation and the matching PyTorch layer, then comparing the outputs with `np.allclose`:
+Each layer is compared with its PyTorch equivalent using the same inputs and parameters:
 
-1. ReLU: checked that negatives are zeroed and positives pass through unchanged.
-2. Sigmoid: matches `torch.nn.Sigmoid` within `atol=1e-5`.
-3. Tanh: matches `torch.nn.Tanh` within `atol=1e-5`.
-4. GeLU: my version uses the sigmoid approximation `x * sigmoid(1.702x)`, while PyTorch's `GELU()` is the exact erf-based version, so they are compared with a looser `atol=0.05`. The measured max absolute difference is about 0.02.
-5. Softmax: matches `torch.nn.Softmax(dim=-1)` within `atol=1e-5`, and each row sums to 1.
+1. `Linear_CP`: its weights and bias are copied into `torch.nn.Linear`. The weight is transposed because TinyTorch stores it as `(in_features, out_features)`, while PyTorch uses `(out_features, in_features)`. The outputs match within `atol=1e-5`, and both layers return the same number of parameters.
+2. `Dropout_CP`: exact values are not compared because NumPy and PyTorch generate different random masks. Instead, the experiment checks that the fraction of zeroed values is close to `p`, inverted scaling preserves the expected mean, and inference mode returns the input unchanged.
+3. `Sequential`: both implementations use `Linear(4, 5) -> ReLU -> Linear(5, 2)` with synchronized parameters. Their outputs match within `atol=1e-5`, and both containers collect the same number of parameters.
 
-All comparisons pass.
+The correctness output from the executed notebook was:
+
+```text
+Linear_CP
+  Max absolute difference: 1.19e-07
+  Output and parameter count match PyTorch: PASS
+
+Dropout_CP (p = 0.25)
+  Expected zero fraction:  0.250
+  TinyTorch zero fraction: 0.251, mean: 0.999
+  PyTorch zero fraction:   0.250, mean: 1.000
+  Statistics and inference behavior match PyTorch: PASS
+
+Sequential
+  Maximum output difference: approximately 2.98e-08
+  Parameters: TinyTorch = 37, PyTorch = 37
+  Output and collected parameters match PyTorch: PASS
+```
+
+### Efficiency results
+
+The timer performs warm-up calls and reports the median CPU forward-pass time per call. Inputs and layer construction are outside the timed region.
+
+| Layer and input | TinyTorch | PyTorch | TinyTorch / PyTorch | Result |
+|---|---:|---:|---:|---|
+| Linear, batch `32`, `64 -> 32` | `38.7865 ms` | `0.0073 ms` | `5331.48x` | PyTorch was about 5,331 times faster |
+| Dropout, shape `256 x 256` | `0.6309 ms` | `0.7892 ms` | `0.80x` | TinyTorch was about 1.25 times faster in this run |
+| Sequential, batch `16`, `32 -> 48 -> 16` | `20.6633 ms` | `0.0261 ms` | `791.85x` | PyTorch was about 792 times faster |
+
+PyTorch is much faster for `Linear` and `Sequential` because it uses optimized compiled matrix-multiplication kernels, while `Tensor_CP.matmul` currently performs the multiplication with three Python loops. `Dropout_CP` is competitive in this small CPU benchmark because its work is handled by vectorized NumPy operations. The dropout result should not be interpreted as a general advantage over PyTorch; timings vary with tensor size, CPU, thread settings, and system load.
+
+All correctness checks pass.
 
 ## What I learned
 
-Activations - are fundamental blocks in Neural Networks, without them stacking a one neural network on top of another would just mean a one NN, which would not affect or change the data.
+Layers are the functions with weights and parameters. 
 
 What I learnt:
-1.  that `ReLU` is a activation layer that replaces negative numbers with 0, but have drawbacks for the data with all negatives then it changes everything into 0 and then gradient descent for backward propagation becomes 0. 
-2.  `Sigmoid` outputs values between 0 and 1 making it good for transforming and representing raw values in a view of `probabilities`
-3.  in `Softmax` we substract max from the intire Matrix in order to normalize the vector, so the huge numbers in exponents will not explode, for example: $\exp^{100}≈ 2.7 * 10^{43}$ hence it overflows to inf, then numerator and denominator -> inf resulting in $\frac{inf}{inf}= nan$
-
-## When to use which? 
-
-1. `LeCun initialization` - designed specifically for SELU and TanH activation functions.
-2. `Xavier/Glorot initialization` - designed for Tanh and Sigmoid fucntions
-3. `He/Kaiming initialization` - designed for ReLU or Leaky ReLU activations.
+1. Linear model formula $y = X*W + b$
+2. Dropout layer without scaling would give less applicable results as a magnitudes during training and inference will not be aligned
 
 ## Resources
 
-https://proceedings.mlr.press/v15/glorot11a.html - Deep Sparse Rectifier Neural Networks
+Understanding the difficulty of training deep feedforward neural networks - Glorot and Bengio (2010). Introduces Xavier/Glorot initialization and analyzes why proper weight scaling matters for gradient flow. The foundation for modern initialization schemes - https://proceedings.mlr.press/v9/glorot10a.html 
