@@ -1,54 +1,34 @@
-# Module 03 — Layers
+# Module 04 — Loss Functions
 
 ## Goal
 
-Is to build 3 Layers: Linear($y = xW + b$), Dropout and Sequential layers, so in the end it's possible to make `Sequential(Linear(784, 256), ReLU(), Linear(256, 10))`
-
-Implement everything with methods of `forward()` and `parameters()`
+To Implement 3 loss functions: `Mean Squared Error (MSE)`, `CrossEntropy` and `Binary Cross-Entropy`. Along the way I will implement the `log-sum-exp trick` - the one numerical method that separates a softmax that trains from one that returns nan on tht first batch with large logits
 
 ## Why it matters
 
-Layers are what make the neural networks work, it adds to a model weights and makes predictions via activations layers.
+Losses are backbone part of Neural Network, without it NN would turn to a guessing machine. It turns one forward method into a learning step, and shows the direction in which optimization should move.
 
 ## Core concepts
 
-1. `Linear layer` applies $y = x*Weight + bias$ and outputs the result as a Tensor. Bias can be ignored if parameter bias set to False
-2. `Dropout layer` is a regularization technique which turns off temporarily specific percentage of neurons in our neural network in order to prevent overfitting. Works only during training and all neurons are then turned back on during validation and test
-3. `Sequential layer`
+![alt text](image.png)
+
+1. `MSELoss` - Mean squared error for continuous predictions
+2. `log softmax` - Log-sum-exp trick for numerical stability
+3. `CrossEntropyLoss` - Negative log-likelihood for multi-class classification
+4. `BinaryCrossEntropyLoss` - Cross-entropy specialized for binary decisions
 
 ## Mathematics and rules
 
-1. `Linear Layer`. For
-* Weight initialization we use formula: 
-$$ \sigma = \sqrt{\frac{1}{\text{InFeats}}} $$
-This initialization known as a `LeCun initialization` - it shrinks a random variable proprtionally to how many inputs the layer has(Normal distribution)
-* Bias initialized at 0 because there is no gain from randomizing it.
+1. `MSELoss` - formula: 
 
-![alt text](image.png)
+$$ Loss = \frac{1}{N} \sum_i^n({\text{predictions} - \text{targets}})^2 $$
 
-2. `Dropout Layer`. Formula of a scaling unit: 
+Where `N`is the number of elements in Tensor
 
-$$ \text{scale} = \frac{1}{1-p} $$
-Algorithm: 
+2. `Cross Entropy` 
 
-```python
-Edge Case Checks: 
-    If not training or prob == DropoutMinProb -> return the same result with no transformation
-    If prob == DropoutMaxProb -> return the all zeros Tensor with shape of X.data.shape
+3. `Log_softmax` - is a numerical stability technique in classification. It saves overflow of the exponent calcluation from `float32` resulting in $-\infty$
 
-    else:
-        1. keep_prob = 1 - prob
-        2. maskout the values in X where p < keep_prob(fill them with true)
-        3. create a mask_tensor -> as type float32
-        4. scale = Tensor(np.array(1 / keep_prob))
-        5. compute the output = X * mask_tensor * scale
-        6. Return Output
-```
-Why do we scale? 
-
-Because when some neurons are turned off during training, others should keep up with the same power, hence multiplying remaining neurons with $\frac{1}{1-p}$ multiplies alive neuros to work harder. This results in equal sums from training and inference.
-
-3. `Sequencial Layer`. Is a Container which sequentially runs layers one by one.
 
 ## What I implemented
 
