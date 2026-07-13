@@ -87,4 +87,5 @@ $$ T = \frac{D_\text{vol}}{\text{BW}} + \frac{O}{R_\text{peak} * \eta_\text{hw}}
 total latency here is decomposed into 3 terms: `Data movement` -> $\frac{D_\text{vol}}{\text{BW}}$, `Compute` -> $\frac{O}{R_\text{peak} * \eta_\text{hw}}$ and `Fixed overhead` $L_\text{lat}$
 
 
-### 
+### Five lighthouse models: 
+![alt text](data/images/image.png)
