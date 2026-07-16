@@ -15,6 +15,16 @@ class Tensor_CP:
         self.size = self.data.size
         self.dtype = self.data.dtype
 
+    def __len__(self):
+        """Returns the size of tensor's first dimention"""
+
+        return len(self.data)
+    
+    def __getitem__(self, idx) -> "Tensor_CP":
+        """Return an item at a given index"""
+
+        return Tensor_CP(self.data[idx])
+      
     # ========================= Basic arithmetics ========================= 
     def __add__(self, other):
         """
