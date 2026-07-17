@@ -24,35 +24,16 @@
 
 ## Mathematics and rules
 
-1. `MSELoss` - formula: 
+Pipeline to enable: 
 
-$$ Loss = \frac{1}{N} \sum_i^n({\text{predictions} - \text{targets}})^2 $$
+```python 
+dataset = TensorDataset(features, labels)
+loader = DataLoader(dataset, batch_size=32, shuffle=True)
 
-Where `N`is the number of elements in Tensor
-
-2. `Cross Entropy` - measures dissimilarity between model's predicted probability distribution and true target distribution. Used for Multiclass Classification
-Algorithm: 
-```python
-1. Turn logits into log_probs
-2. Extract the batch size as logits.shape[0] and target_indices as a target.astype(int)
-3. Calculate the log probabilities for the data in indices [np.arange(batch_size), target_indices]
-4. Finally Compute cross_entropy = -np.mean(log probabilities)
+for batch_features, batch_labels in loader: 
+    # batch_features: (32, features_dim) - ready for model.forward()
+    predictions = model(batch_features)
 ```
-
-3. `Log_softmax` - is a numerical stability technique in classification. It saves overflow of the exponent calcluation from `float32` resulting in $-\infty$
-Algorithm: 
-```python
-1. Get the maximum element from the given axis
-2. Compute X_shifted as X - X_max
-3. Then compute we use the Formula 1.1
-4. Finally Return the Tensor
-```
-Formula 1.1
-
-$$
-\text{log\_softmax}_i = x_{\text{shifted}, i} - \log \left( \sum_{j} \exp(x_{\text{shifted}, j}) \right)
-$$
-
 
 ## What I implemented
 
