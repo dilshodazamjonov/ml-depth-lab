@@ -62,13 +62,13 @@ class DataLoader:
         if not isinstance(dataset, Dataset): 
             raise TypeError(f"Expected {Dataset} type dataset, got {type(dataset)}")
         
-        if type(batch_size) is int:
+        if type(batch_size) is not int:
             raise TypeError(f'Expected batch size as integer, got: {type(batch_size)}')
 
         if batch_size <= 0: 
             raise ValueError(f"Batch size should be greater than 0 got: {batch_size}")
 
-        if type(shuffle) is bool:
+        if type(shuffle) is not bool:
             raise TypeError(f'Expected shuffle as boolean, got: {type(shuffle)}')
         
         self.dataset = dataset
@@ -123,4 +123,3 @@ class DataLoader:
             # Collate the batch
             yield self._collate_batch(batch)
         
-
