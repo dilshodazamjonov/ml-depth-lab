@@ -192,4 +192,52 @@ class RandomHorizontalFlip:
         return image
 
 
+def _pad_image(data: NDArray, padding: int) -> NDArray : 
+    """Helper function that adds padding to a image"""
 
+    if type(padding) is bool:
+        raise TypeError('Got boolean, expected positive integer for the padding parameter')
+
+    if not isinstance(padding, int):
+        raise TypeError(f'Padding parameter is expected to be a type integer got {type(padding)} instead')
+
+    if padding < 0:
+        raise ValueError(f'Expected padding value to be positive integer got: {padding} instead')
+
+    if not isinstance(data, np.ndarray):
+        raise TypeError(f'Expected data to be {np.ndarray} got {type(data)}')
+
+    if data.ndim not in (2, 3):
+        raise ValueError(f"Expected an input data to be 2D or 3D got {data.ndim} instead")
+
+    if data.ndim == 2: 
+        # (H, W)
+        pad_width = (
+            (padding, padding),
+            (padding, padding)
+        )
+
+    elif data.shape[0] <= 4:
+        # (C, H, W)
+        pad_width = (
+            (0, 0),
+            (padding, padding),
+            (padding, padding)
+        )
+
+    else:
+        # (H, W, C)
+        pad_width = (
+            (padding, padding),
+            (padding, padding),
+            (0, 0)
+        )
+
+
+    output = np.pad(data, 
+                    pad_width=pad_width,
+                    mode='constant',
+                    constant_values=0
+                )
+    return output
+    
