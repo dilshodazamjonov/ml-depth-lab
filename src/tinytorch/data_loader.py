@@ -1,8 +1,10 @@
 from .tensor import Tensor_CP
 from abc import ABC, abstractmethod
 import numpy as np
+
 import random
 
+from numpy.typing import NDArray
 
 class Dataset(ABC):
     """To abstract the data for tensors.""" 
@@ -123,3 +125,71 @@ class DataLoader:
             # Collate the batch
             yield self._collate_batch(batch)
         
+
+class RandomHorizontalFlip:
+    """
+    Flips image given the value of p
+
+    following:
+        p=0.0 → never flip
+        p=0.5 → approximately 50% of calls flip
+        p=1.0 → always flip
+    """
+    def __init__(self, p: int | float = 0.5) -> None:
+
+        if not isinstance(p, (float, int)):
+            raise TypeError(f"Expected float, int type value for p, got {type(p)} instead")
+
+        if isinstance(p, bool):
+            raise TypeError(f"got {bool} type value for p")
+
+        if not 0 <= p <= 1:
+            # p must be between 0 and 1
+            raise ValueError(f"Expected p value between 0 and 1 got: {p}")
+
+        self.p = p
+
+    def __call__(self, image: Tensor_CP | NDArray) -> NDArray | Tensor_CP:
+        """Enabled transforming like a function"""
+
+        r = random.random()
+
+        if isinstance(image, np.ndarray):
+            data = image
+            is_tensor = False
+
+        elif isinstance(image, Tensor_CP):
+            data = image.data
+            is_tensor = True
+
+        else:
+            raise TypeError(f"Expected {NDArray} or {Tensor_CP} got: {type(image)}")
+
+        # Identifying the dimentions and axis
+        if data.ndim == 2:
+            axis = -1
+
+        elif data.ndim == 3 and data.shape[0] <= 4:
+            axis = -1
+
+        elif data.ndim == 3 and data.shape[0] > 4:
+            axis = -2
+
+        else:
+            raise ValueError(f"Invalid shapes or dimentions: got dimention as {data.ndim} and shape as {data.shape}")
+
+
+        if r < self.p:
+
+            flipped_data = np.flip(data, axis=axis).copy()
+
+            if is_tensor:
+                return Tensor_CP(flipped_data)
+
+            else:
+                return flipped_data
+
+        return image
+
+
+

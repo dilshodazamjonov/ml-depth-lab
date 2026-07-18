@@ -20,7 +20,6 @@
 3. `DataLoader.__init__()` - Store datasets, batch size, shuffle flag
 4. `DataLoader.__iter__()` - Index shuffling and batch grouping
 5. `DataLoader.__collate_batch()` - Stack samples into batch tensors
-6. `Image Loader` - To load images when requested
 
 ## Mathematics and rules
 
@@ -38,8 +37,9 @@ for batch_features, batch_labels in loader:
 ## What I implemented
 
 Classes: 
-1. `Cross Entropy and MSE`
-2. `Log_softmax` - Overflow saving numerical stability technique used in classification.
+1. `Dataset` - For data abstraction
+2. `TensorDataset` - For managing memory, and loading dataset into memery efficiently with giving data, only when requested
+3. `DataLoader` - For distributing data into batches and efficiently iterating over the whole dataset
 
 ## Experiment
 
