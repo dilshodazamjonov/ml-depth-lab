@@ -295,3 +295,98 @@ def _random_crop_region(
     return top, left
 
 
+class RandomCrop:
+    """Identify the random size and crop the image"""
+
+    def __init__(self, size: int | tuple[int, int], padding: int = 4) -> None:
+        """
+        Size can be a tuple: (28, 32) or an integer 20 -> size = (20, 20)
+        """   
+
+        # Checks for size dtypes
+        if type(size) is int:  
+            if size > 0:
+                size = (size, size)
+            else:
+                raise ValueError('size should be a positive integer')
+
+        elif isinstance(size, tuple):
+            if len(size) == 2:
+                if all(type(num) is int for num in size):
+
+                    if any(num <= 0 for num in size):
+                        raise ValueError("Got negative integers inside of the tuple")
+                    
+                else:
+                    raise TypeError("Got tuple with elements not integer")
+                
+            else:
+                raise ValueError(f"Expected tuple with length 2 got {len(size)}")
+                
+        else:
+            raise TypeError(f"Expected parameter dtype as {int} or {tuple} got {type(size)}")
+
+        # Checks for padding types
+        if type(padding) is not int:
+            raise TypeError(f'Padding parameter is expected to be a type integer got {type(padding)} instead')
+
+        if padding < 0:
+            raise ValueError(f'Expected padding value to be positive integer got: {padding} instead')
+        
+
+        self.size = size
+        self.padding = padding
+    
+    def __call__(self, image: Tensor_CP | NDArray) -> NDArray | Tensor_CP:
+        
+        if isinstance(image, Tensor_CP):
+            data = image.data
+            is_tensor = True
+
+        elif isinstance(image, np.ndarray):
+            data = image
+            is_tensor = False
+        
+        else:
+            raise TypeError(f'Expected image as type of {NDArray} or {Tensor_CP} got {type(image)}')
+
+        
+        padded = _pad_image(data, self.padding)
+        target_h, target_w = self.size
+
+        if data.ndim == 2:
+            image_format = "HW"
+            padded_h, padded_w = padded.shape
+
+        elif data.shape[0] <= 4:
+            image_format = "CHW"
+            padded_h = padded.shape[1]
+            padded_w = padded.shape[2]
+
+        else:
+            image_format = "HWC"
+            padded_h = padded.shape[0]
+            padded_w = padded.shape[1]        
+                
+        
+        top, left = _random_crop_region(
+            padded_h,
+            padded_w,
+            target_h,
+            target_w
+        )
+
+        if image_format == "HW":
+            output = padded[top:top + target_h, left:left + target_w].copy()
+        
+        elif image_format == "CHW":
+            output = padded[:, top:top + target_h, left:left + target_w].copy()
+        
+        elif image_format == "HWC":
+            output = padded[top:top + target_h, left:left + target_w, :].copy()
+
+
+        if is_tensor:
+            return Tensor_CP(output)
+
+        return output
