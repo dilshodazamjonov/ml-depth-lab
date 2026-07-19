@@ -240,4 +240,58 @@ def _pad_image(data: NDArray, padding: int) -> NDArray :
                     constant_values=0
                 )
     return output
+
+def _random_crop_region(
+    padded_h: int,
+    padded_w: int,
+    target_h: int,
+    target_w: int
+) -> tuple[int, int]:   
+    """
+    Sample a valid random top-left coordinate for cropping an image.
+
+    The returned coordinates ensure that a crop of shape
+    (target_h, target_w) fits completely inside an image of shape
+    (padded_h, padded_w).
+
+    Args:
+        padded_h: Height of the padded image.
+        padded_w: Width of the padded image.
+        target_h: Height of the desired crop.
+        target_w: Width of the desired crop.
+
+    Returns:
+        A tuple (top, left), representing the starting row and column
+        of the crop.
+
+    Raises:
+        TypeError: If any dimension is not an integer.
+        ValueError: If any dimension is non-positive or the target crop
+            is larger than the padded image.
+    """
+    dimensions = (padded_h, padded_w, target_h, target_w)
     
+    if any(type(dim) is not int for dim in dimensions):
+        raise TypeError(
+                f"Expected integer for dimensions, got: "
+                f"{{'padded_h': {type(padded_h).__name__}, "
+                f"'padded_w': {type(padded_w).__name__}, "
+                f"'target_h': {type(target_h).__name__}, "
+                f"'target_w': {type(target_w).__name__}}}"
+            )
+    
+    if any(dim <= 0 for dim in [padded_h, padded_w, target_h, target_w]):
+        raise ValueError("Expected positive integer for dimentions got Negative value")
+    
+    max_top = padded_h - target_h
+    max_left = padded_w - target_w
+
+    if any(top_left < 0 for top_left in [max_top, max_left]):
+        raise ValueError("Got target height or width > padded height and width")
+
+    top = random.randint(0, max_top)
+    left = random.randint(0, max_left)
+
+    return top, left
+
+
