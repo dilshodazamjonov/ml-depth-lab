@@ -390,3 +390,33 @@ class RandomCrop:
             return Tensor_CP(output)
 
         return output
+
+
+class Compose:
+    """
+    Sequential orchestration of RandomCrop and RandomHorizontal Flip and returns final transformed image.
+    
+    Args:
+        transforms: callable python class or classes as a tuple or list
+    
+    Returns: 
+        np.NDarray or Tensor_CP transformed image.
+    """
+    def __init__(self, transforms: list | tuple) -> None:
+
+        if not isinstance(transforms, (list, tuple)):
+            raise TypeError(f"Expected transform parameter to be {list} or {tuple} got: {type(transforms)} instead.")
+
+        for transform in transforms:
+            if not callable(transform):
+                raise TypeError(f"Expected a callable object, but got {type(transform).__name__}")
+
+
+        self.transforms = tuple(transforms)
+
+    def __call__(self, image: Tensor_CP | NDArray) -> Tensor_CP | NDArray:
+
+        for transform in self.transforms:
+            image = transform(image)
+
+        return image
