@@ -1,4 +1,4 @@
-# Module 04 — Loss Functions
+# Module 05 — Data Loader
 
 ## Goal
 
@@ -43,55 +43,42 @@ Classes:
 
 ## Experiment
 
-All experiments are included in the `experiment.ipynb` file inside `04_loss_functions`.
+All experiments are included in [`experiment.ipynb`](experiment.ipynb). The notebook executes assertion-based checks for the complete module:
 
-Each loss is compared with its PyTorch equivalent on a small synthetic dataset:
+1. `TensorDataset`: aligned tensor storage, sample access, empty and single-tensor datasets, and invalid inputs.
+2. `DataLoader`: full and partial batches, batch shapes, length, sequential order, shuffled feature-label alignment, once-per-epoch coverage, empty datasets, and argument validation.
+3. `RandomHorizontalFlip`: deterministic `p=0` and `p=1` behavior, seeded randomness, HW/CHW/HWC layouts, container-type preservation, input safety, and validation.
+4. `_pad_image` and `RandomCrop`: correct spatial shapes for HW/CHW/HWC data, zero borders, unchanged channel dimensions, reproducible crops, container-type preservation, and edge cases.
+5. `Compose`: transform order, NumPy and `Tensor_CP` outputs, unchanged inputs, and invalid transform validation.
+6. PyTorch parity: identical sequential batches from the same synthetic feature and label arrays.
 
-1. `MSELoss_CP`: evaluated on a noisy linear regression dataset `y = 2x - 1 + noise`. Its loss matches `torch.nn.MSELoss` within `atol=1e-5`, correctly ranks a good model below a mean baseline and below a wrong model, and is minimized exactly at the true slope when the slope is swept.
-2. `CrossEntropy`: evaluated on random logits over 4 classes with integer class targets. Its `log_softmax` matches `torch.log_softmax` and the loss matches `torch.nn.CrossEntropyLoss` within `atol=1e-5`. The log-sum-exp trick keeps the loss finite for logits near 1000, where a naive `exp` overflows to `inf`, and the loss falls monotonically toward zero as the true-class logit is boosted.
-
-The correctness output from the executed notebook was:
+The key correctness output from the executed notebook was:
 
 ```text
-TinyTorch MSELoss_CP: 0.231074
-PyTorch  nn.MSELoss: 0.231074
-Absolute difference:  1.49e-08
-MSELoss_CP matches PyTorch
-
-log_softmax max difference:   2.38e-07
-TinyTorch CrossEntropy:       1.624034
-PyTorch  nn.CrossEntropyLoss: 1.624034
-Absolute difference:          1.19e-07
-CrossEntropy and log_softmax match PyTorch
-
-Loss with logits near 1000: 0.407606
-Naive exp(logits):          [[inf inf inf]]
-log-sum-exp keeps the loss finite while naive exp overflows
+Batch sizes:            [4, 4, 3]
+Maximum feature error: 0.0
+Maximum label error:   0.0
+PASS: TinyTorch and PyTorch produce identical sequential batches
 ```
 
 ### Efficiency results
 
-The timer performs warm-up calls and reports the median CPU forward-pass time per call. Tensors are created outside the timed region.
+The timer performs three warm-up epochs and reports the median of nine complete CPU epochs. Both loaders iterate over the same pre-created in-memory dataset of 4,096 `float32` samples with 32 features, using `batch_size=64`, no shuffling, and one process. The timed region includes iteration and collation, but excludes data creation, disk I/O, multiprocessing, and model computation.
 
-| Loss and input | TinyTorch | PyTorch | TinyTorch / PyTorch | Result |
+| Input | TinyTorch | PyTorch | TinyTorch / PyTorch | TinyTorch throughput |
 |---|---:|---:|---:|---|
-| MSELoss, `256` elements | `0.0046 ms` | `0.0090 ms` | `0.51x` | TinyTorch was about 2 times faster in this run |
-| CrossEntropy, batch `256`, `4` classes | `0.0393 ms` | `0.0352 ms` | `1.12x` | PyTorch was about 1.1 times faster |
+| 4,096 samples x 32 features, 64 batches | `10.288 ms/epoch` | `20.606 ms/epoch` | `0.50x` | `398,122 samples/s` |
 
-Both losses are close to PyTorch because their heavy work is vectorized NumPy rather than the Python-loop `matmul` used by the layer module. `MSELoss_CP` is a single mean-of-squared-differences expression and was slightly faster than PyTorch in this run, while `CrossEntropy` makes a few more array passes (`max`, `exp`, `sum`, `log`, and the gather of correct-class log-probabilities) and was marginally slower than PyTorch's fused kernel. These are tiny tensors on CPU, so the results should not be read as a general speed advantage; timings vary with tensor size, CPU, thread settings, and system load.
+TinyTorch took about half as long as PyTorch for this small, single-process synthetic workload. This is not a general speed advantage: PyTorch's `DataLoader` supports substantially more functionality, and the result can change with dataset size, storage, transforms, worker count, CPU, library versions, and system load. The epoch checksums matched exactly, confirming that both timed loops consumed equivalent values.
 
-All correctness checks pass.
+All notebook assertions pass when executed top-to-bottom.
 
 ## What I learned
 
-Loss functions usage between Cross Entropy loss and Binary Cross Entropy loss 
-
-Scenario: 
-
-`Binary Cross Entropy loss` - used in datasets where targets are independent binary decisions
-`Cross Entropy` - target consists of mutually exclusive classes 
+`Dataset` acts as a anonimization of a data, and `TensorDataset` - does loading and unloading from the memory, managing effiency
+`DataLoader` - Does the batching and iteration on a memory level, and giving data only when requested.
 
 
 ## Resources
 
-Focal Loss for Dense Object Detection - Lin et al. (2017). Addresses class imbalance by reshaping the loss curve to down-weight easy examples. Shows how loss function design directly impacts model performance on real problems. - https://arxiv.org/abs/1708.02002
+...
