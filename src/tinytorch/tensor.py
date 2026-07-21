@@ -7,9 +7,16 @@ class Tensor_CP:
     """
 
     # ========================= Basic Methods =========================
-    def __init__(self, data: Any) -> None:
+    def __init__(self, data: Any, requires_grad: bool = False) -> None:
 
         self.data = np.array(data, dtype=np.float32)
+
+        if type(requires_grad) is not bool:
+            raise TypeError(f"Expected boolean type for requires_grad, got {type(requires_grad)}")
+        
+        self.requires_grad = requires_grad
+        self.grad = None
+        self._grad_fn = None
 
         self.shape = self.data.shape
         self.size = self.data.size
@@ -136,9 +143,6 @@ class Tensor_CP:
         
         if sum([1 for i in shape if i < -1]) > 0:
             raise ValueError(f"Negative shape is not supported. Got shape: {shape}")
-        
-        if -1 not in shape and shape[0] != size:
-            raise ValueError(f"Cannot reshape a tensor with shape: {self.data.shape} to shape: {shape}")   
         
         if shape.count(-1) == 1:
             known_dims = [i for i in shape if i > -1]
