@@ -290,3 +290,28 @@ class TransposeBackward(Function):
         output = grad_output.T
 
         return (output,)
+
+class GetItemBackward(Function):
+
+    def __init__(self, tensor: Tensor_CP, idx) -> None:
+        super().__init__(tensor)
+
+        self.idx = idx
+
+    def apply(self, grad_output: NDArray) -> tuple[NDArray | None]:
+
+        tensor, = self.saved_tensors
+
+        if not tensor.requires_grad:
+            return (None,)
+
+        input_gradient = np.zeros_like(tensor.data)
+
+        np.add.at(
+            input_gradient,
+            self.idx,
+            grad_output
+        )
+
+        return (input_gradient,)
+    

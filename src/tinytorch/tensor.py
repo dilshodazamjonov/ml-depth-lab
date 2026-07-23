@@ -1,5 +1,6 @@
 import numpy as np
 from typing import Any, Tuple
+from .autograd import AddBackward, SubBackward, MulBackward, DivBackward, MatMulBackward, MeanBackward, SumBackward, ReshapeBackward, TransposeBackward, GetItemBackward
 
 class Tensor_CP:
     """
@@ -28,9 +29,17 @@ class Tensor_CP:
         return len(self.data)
     
     def __getitem__(self, idx) -> "Tensor_CP":
-        """Return an item at a given index"""
+        """Return an indexed tensor while preserving the computation graph."""
 
-        return Tensor_CP(self.data[idx])
+        output = Tensor_CP(
+            self.data[idx],
+            requires_grad=self.requires_grad
+        )
+
+        if self.requires_grad:
+            output._grad_fn = GetItemBackward(self, idx)
+
+        return output
       
     # ========================= Basic arithmetics ========================= 
     def __add__(self, other):
@@ -41,37 +50,91 @@ class Tensor_CP:
             1. (1, 3) + (3,) => (3, 3)
             2. (3, 1) + (3, 1) => (3, 1)
         """
-        if isinstance(other, Tensor_CP):
-            # Unwrap, compute with NumPy, re-wrap
-            return Tensor_CP(self.data + other.data)
+        other_data = other.data if isinstance(other, Tensor_CP) else other
 
-        else:
-            # Scalar Broadcast
-            return Tensor_CP(self.data + other)
+        requires_grad = (
+            self.requires_grad
+            or (
+                isinstance(other, Tensor_CP)
+                and other.requires_grad
+            )
+        )
+
+        output = Tensor_CP(self.data + other_data, requires_grad=requires_grad)
+
+        if requires_grad:
+            output._grad_fn = AddBackward(self, other)
+
+        return output
+
+    def __radd__(self, other):
+        """Handles right-side addition"""
+        return self.__add__(other)
 
     def __sub__(self, other):
         """
         Subtract one tensor from another with broadcasting support 
         """
+        other_data = other.data if isinstance(other, Tensor_CP) else other
 
-        if isinstance(other, Tensor_CP):
-            return Tensor_CP(self.data - other.data)
+        requires_grad = (
+            self.requires_grad
+            or (
+                isinstance(other, Tensor_CP)
+                and other.requires_grad
+            )
+        )
 
-        else:
-            return Tensor_CP(self.data - other)
+        output = Tensor_CP(self.data - other_data, requires_grad=requires_grad)
+
+        if requires_grad:
+            output._grad_fn = SubBackward(self, other)
+
+        return output
+
+    def __rsub__(self, other):
+        other_data = other.data if isinstance(other, Tensor_CP) else other
+
+        requires_grad = (
+            self.requires_grad
+            or (isinstance(other, Tensor_CP) and other.requires_grad)
+        )
+
+        output = Tensor_CP(
+            other_data - self.data,
+            requires_grad=requires_grad
+        )
+
+        if requires_grad:
+            output._grad_fn = SubBackward(other, self)
+
+        return output
+
 
     def __mul__(self, other):
         """
             Multiply one tensor by another with broadcasting support 
         """
         try:
-            if isinstance(other, Tensor_CP):
-                return Tensor_CP(self.data * other.data)
+            other_data = other.data if isinstance(other, Tensor_CP) else other
 
-            else:
-                return Tensor_CP(self.data * other)
+            requires_grad = (
+                self.requires_grad
+                or (
+                    isinstance(other, Tensor_CP)
+                    and other.requires_grad
+                )
+            )
+
+            output = Tensor_CP(self.data * other_data, requires_grad=requires_grad)
+
+            if requires_grad:
+                output._grad_fn = MulBackward(self, other)
+
+            return output
+        
         except ValueError as e:
-            raise ValueError(f"Incompatibli shape for broadcasting: {e}")
+            raise ValueError(f"Incompatible shape for broadcasting: {e}")
 
     def __rmul__(self, other):
         """
@@ -85,103 +148,153 @@ class Tensor_CP:
         """
 
         try:
-            if isinstance(other, Tensor_CP):
-                return Tensor_CP(self.data / other.data)
-            else:
-                return Tensor_CP(self.data / other)
+            other_data = other.data if isinstance(other, Tensor_CP) else other
+
+            requires_grad = (
+                self.requires_grad
+                or (
+                    isinstance(other, Tensor_CP)
+                    and other.requires_grad
+                )
+            )
+
+            output = Tensor_CP(self.data / other_data, requires_grad=requires_grad)
+
+            if requires_grad:
+                output._grad_fn = DivBackward(self, other)
+
+            return output
         
         except ValueError as e:
             raise ValueError(f"Sizes of a matrices does not match: {e}")
 
+    def __rtruediv__(self, other):
+        other_data = other.data if isinstance(other, Tensor_CP) else other
+
+        requires_grad = (
+            self.requires_grad
+            or (isinstance(other, Tensor_CP) and other.requires_grad)
+        )
+
+        output = Tensor_CP(
+            other_data / self.data,
+            requires_grad=requires_grad
+        )
+
+        if requires_grad:
+            output._grad_fn = DivBackward(other, self)
+
+        return output
+
     # ========================= MatMUL, Transpose, Reshape =========================
 
-    def matmul(self, other):
+    def matmul(self, other) -> "Tensor_CP":
 
-        if isinstance(other, Tensor_CP):
+        other_data = other.data if isinstance(other, Tensor_CP) else np.asarray(other, dtype=np.float32)
 
-            if self.data.shape[-1] != other.data.shape[0]:
-                raise ValueError(f"Given matrices with innner parts {self.data.shape} and {other.shape} do not match")
+        if self.data.ndim != 2 or other_data.ndim != 2:
+            raise ValueError(
+                "matmul() currently supports only two-dimensional inputs"
+            )
 
-            c_shape = tuple([self.data.shape[0], other.data.shape[-1]]) 
-            C = np.zeros(c_shape) 
+        if self.data.shape[-1] != other_data.shape[0]:
+            raise ValueError(f"Given matrices with innner parts {self.data.shape} and {other.shape} do not match")
 
-            # logic of computation
 
-            for i in range(self.data.shape[0]):
-                for j in range(other.data.shape[1]):
-                    for k in range(other.data.shape[0]):
-                        C[i][j] += self.data[i][k] * other.data[k][j]
-                 
-            return Tensor_CP(data=C)
+        c_shape = (self.data.shape[0], other_data.shape[-1])
+        C = np.zeros(c_shape, dtype=np.float32) 
 
-        else:
-            raise ValueError(f"Expected tensor-like object got: {type(other)}")
+        # logic of computation
+
+        for i in range(self.data.shape[0]):
+            for j in range(other_data.shape[1]):
+                for k in range(other_data.shape[0]):
+                    C[i][j] += self.data[i][k] * other_data[k][j]
+
+        # requires gradient logic 
+        requires_grad = (
+            self.requires_grad
+            or (isinstance(other, Tensor_CP)
+                and other.requires_grad
+            )
+        )
+
+        output = Tensor_CP(C, requires_grad=requires_grad)
+
+        if requires_grad:
+            output._grad_fn = MatMulBackward(self, other)
+                
+        return output
 
 
     def transpose(self):
 
-        if self.data.ndim == 2:
+        if self.data.ndim != 2:
 
-            return Tensor_CP(self.data.transpose())
-            
-        else:
-            raise ValueError(f"Currently only up to 2 dimaetions are supported, received {self.data.ndim}")
+            raise ValueError(
+                f"Only 2D transpose is currently supported, "
+                f"received {self.data.ndim} dimensions"
+            )
+        
+        output = Tensor_CP(self.data.T, requires_grad=self.requires_grad)
 
+        if self.requires_grad:
+            output._grad_fn = TransposeBackward(self)
 
+        return output
+    
     def reshape(self, shape: Tuple[int, ...]):
         """
         Needed checks: 
-            1. shape sizes multiplication == size of the self.data.shape
-            2. Maximum of one -1 dimension.reshape(-1, 3) 
-            3. -1 only from negatives and only once 
+            1. instance of shape shold be tuple,
+            2. len(shape) > 1 
+            3. check if all passed shapes are positive integers
+            4. Reject Booleans too.
+            5. check for the shape if all are positive
+            6. if more than 1 element is -1 inside of shape -> error
         """
-        size = self.data.size
 
+        if not isinstance(shape, tuple):
+            raise TypeError(f"Expected tuple type shape, got {type(shape)}")
 
-        if len(shape) < 1:
-            raise ValueError(f"Shape expected as Tuple type with length >= 1 got {len(shape)}")
+        if len(shape) < 1: 
+            raise ValueError(f"Expected length of shape bigger than 1 got: {len(shape)}")
+
+        if any(
+            isinstance(dim, (bool, np.bool_))
+            or not isinstance(dim, (int, np.integer))
+            for dim in shape
+        ):
+            raise TypeError("Every reshape dimension must be an integer")
+
+        if any(
+            not isinstance(dim, (int, np.integer))
+            for dim in shape
+        ):
+            raise TypeError("Expected elements to be integers detected non-numeric or not integer values")
+
+        shape = tuple([int(dim) for dim in shape])
+
+        if any(dim < -1 for dim in shape):
+            raise ValueError(f"Dimentions smaller than -1 are not supported: {shape}")
+
+        if shape.count(-1) > 1:
+            raise ValueError(f"Only one inferred dimention is allowed, got {shape.count(-1)}")
+
+        try:
+            reshaped_data = self.data.reshape(shape)
+        except ValueError as e:
+            raise ValueError(
+                f"Cannot shape tensor with shape {self.shape} and size {self.size} to {shape}: {e}"
+            ) from e
         
-        if sum([1 for i in shape if i < -1]) > 0:
-            raise ValueError(f"Negative shape is not supported. Got shape: {shape}")
-        
-        if shape.count(-1) == 1:
-            known_dims = [i for i in shape if i > -1]
-            
+        output = Tensor_CP(reshaped_data, requires_grad=self.requires_grad)
 
-            idx = shape.index(-1) # index at which 1 should be inserted 
+        if self.requires_grad:
+            output._grad_fn = ReshapeBackward(self)
 
-            prod = 1
-            for i in known_dims:
-                prod *= i
+        return output
 
-            try: 
-               remainder = size % prod
-
-            except ZeroDivisionError:
-                raise ZeroDivisionError(f"Devision by zero encountered, passed shape: {shape}")
-
-            if remainder != 0:
-                raise ValueError(f'Error happened while dealing with -1, shape: {shape}, cannot be reshaped to {self.data.shape}')
-            
-            last_sh = int(size / prod)
-            known_dims.insert(idx, last_sh)
-            return Tensor_CP(self.data.reshape(tuple(known_dims)))
-        
-        elif -1 not in shape:            
-            prod = 1
-
-            for i in shape: 
-                prod *= i 
-            
-            if prod != size:
-                raise ValueError(f"Cannot reshape a tensor with shape: {self.data.shape} to shape: {shape}")
-            
-            return Tensor_CP(self.data.reshape(shape))
-
-        
-        else:
-            raise ValueError(f"Expected only one -1 value got 2 or more in provided shape: {shape}")
-        
     # ======================= Axis Semantics =========================
 
     def sum(self, axis=None, keepdims=False):
@@ -190,11 +303,23 @@ class Tensor_CP:
         
         keepdips = True preserves the reduced dimention as size 1, usefull for broadcasting
         """
-            
+
         result = np.sum(self.data, axis=axis, keepdims=keepdims)
-        return Tensor_CP(result)
+
+        output = Tensor_CP(result, requires_grad=self.requires_grad)
+        # pass the Tensor_CP instance (self) to the backward function, not the raw ndarray
+        if self.requires_grad:
+            output._grad_fn = SumBackward(tensor=self, axis=axis, keepdims=keepdims)
+
+        return output
     
     def mean(self, axis=None, keepdims=False):
         """Mean of Tensor accross all the elements"""
-        
-        return Tensor_CP(np.mean(self.data, axis=axis, keepdims=keepdims))
+        result = np.mean(self.data, axis=axis, keepdims=keepdims)
+
+        output = Tensor_CP(result, requires_grad=self.requires_grad)
+
+        if self.requires_grad:
+            output._grad_fn = MeanBackward(self, axis=axis, keepdims=keepdims)
+
+        return output
