@@ -1,8 +1,10 @@
 from typing import Any
 
-from numpy.typing import NDArray
-from .tensor import Tensor_CP
 import numpy as np
+from numpy.typing import NDArray
+
+from .tensor import Tensor_CP
+
 
 class Function:
     """Base class for Autograd classes"""

@@ -1,6 +1,20 @@
+from typing import Any
+
 import numpy as np
-from typing import Any, Tuple
-from .autograd import AddBackward, SubBackward, MulBackward, DivBackward, MatMulBackward, MeanBackward, SumBackward, ReshapeBackward, TransposeBackward, GetItemBackward
+
+from .autograd import (
+    AddBackward,
+    DivBackward,
+    GetItemBackward,
+    MatMulBackward,
+    MeanBackward,
+    MulBackward,
+    ReshapeBackward,
+    SubBackward,
+    SumBackward,
+    TransposeBackward,
+)
+
 
 class Tensor_CP:
     """
@@ -243,7 +257,7 @@ class Tensor_CP:
 
         return output
     
-    def reshape(self, shape: Tuple[int, ...]):
+    def reshape(self, shape: tuple[int, ...]):
         """
         Needed checks: 
             1. instance of shape shold be tuple,
@@ -323,3 +337,33 @@ class Tensor_CP:
             output._grad_fn = MeanBackward(self, axis=axis, keepdims=keepdims)
 
         return output
+
+
+    def backward(self, gradient=None):
+        """Compute gradients via backpropagation"""
+
+        if not self.requires_grad:
+            return
+
+        # Initialize gradient for scalar outputs 
+        if gradient is None:
+            if self.data.size == 1:
+                gradient = np.ones_like(self.data)
+            else:
+                raise ValueError("backward() requires gradient for non-scalar tensors")
+
+        # Accumulate gradient (vectorized NumPy operation)
+        if self.grad is None:
+            self.grad = np.zeros_like(self.data)
+
+        self.grad += gradient
+
+        # Propagate to parent tensors 
+        if hasattr(self, '_grad_fn') and self._grad_fn is not None:
+            grads = self._grad_fn.apply(gradient) # Compute input gradients using vectorized ops
+
+            for tensor, grad in zip(self._grad_fn.saved_tensors, grads):
+                if isinstance(tensor, Tensor_CP) and tensor.requires_grad and grad is not None:
+                    tensor.backward(grad) # Recursive call
+
+            
