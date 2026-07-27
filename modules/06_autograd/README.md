@@ -16,41 +16,8 @@ Every neural networks try to minimize the error causing loss parameters after ea
 
 ![alt text](06_autograd-diag-1.svg)
 
-1. `MSELoss` - Mean squared error for continuous predictions
-2. `log softmax` - Log-sum-exp trick for numerical stability
-3. `CrossEntropyLoss` - Negative log-likelihood for multi-class classification
-4. `BinaryCrossEntropyLoss` - Cross-entropy specialized for binary decisions
-
 ## Mathematics and rules
 
-1. `MSELoss` - formula: 
-
-$$ Loss = \frac{1}{N} \sum_i^n({\text{predictions} - \text{targets}})^2 $$
-
-Where `N`is the number of elements in Tensor
-
-2. `Cross Entropy` - measures dissimilarity between model's predicted probability distribution and true target distribution. Used for Multiclass Classification
-Algorithm: 
-```python
-1. Turn logits into log_probs
-2. Extract the batch size as logits.shape[0] and target_indices as a target.astype(int)
-3. Calculate the log probabilities for the data in indices [np.arange(batch_size), target_indices]
-4. Finally Compute cross_entropy = -np.mean(log probabilities)
-```
-
-3. `Log_softmax` - is a numerical stability technique in classification. It saves overflow of the exponent calcluation from `float32` resulting in $-\infty$
-Algorithm: 
-```python
-1. Get the maximum element from the given axis
-2. Compute X_shifted as X - X_max
-3. Then compute we use the Formula 1.1
-4. Finally Return the Tensor
-```
-Formula 1.1
-
-$$
-\text{log\_softmax}_i = x_{\text{shifted}, i} - \log \left( \sum_{j} \exp(x_{\text{shifted}, j}) \right)
-$$
 
 
 ## What I implemented
@@ -61,55 +28,40 @@ Classes:
 
 ## Experiment
 
-All experiments are included in the `experiment.ipynb` file inside `04_loss_functions`.
+All experiments are included in the `experiment.ipynb` file inside `06_autograd`.
 
-Each loss is compared with its PyTorch equivalent on a small synthetic dataset:
+Every backward rule and the `_sum_to_shape` helper is tested directly: a known `grad_output` is fed into `.apply(...)` and the returned gradients are asserted against the closed-form derivative of each operation. The checks cover numerical values (`np.allclose`, `atol=1e-6`), exact gradient shapes, `None` gradients for constants and `requires_grad=False` operands, broadcasting reduction, and every `axis`/`keepdims` combination for `Sum`/`Mean`.
 
-1. `MSELoss_CP`: evaluated on a noisy linear regression dataset `y = 2x - 1 + noise`. Its loss matches `torch.nn.MSELoss` within `atol=1e-5`, correctly ranks a good model below a mean baseline and below a wrong model, and is minimized exactly at the true slope when the slope is swept.
-2. `CrossEntropy`: evaluated on random logits over 4 classes with integer class targets. Its `log_softmax` matches `torch.log_softmax` and the loss matches `torch.nn.CrossEntropyLoss` within `atol=1e-5`. The log-sum-exp trick keeps the loss finite for logits near 1000, where a naive `exp` overflows to `inf`, and the loss falls monotonically toward zero as the true-class logit is boosted.
+A final end-to-end section drives the real `backward()` on `y = x * x` at `x = 3.0`: the first call gives `x.grad = 6.0`, a second call accumulates to `12.0`, `zero_grad()` on the leaf resets it to `None`, and the next `backward()` starts fresh at `6.0` again.
 
-The correctness output from the executed notebook was:
+The summary from the executed notebook:
 
 ```text
-TinyTorch MSELoss_CP: 0.231074
-PyTorch  nn.MSELoss: 0.231074
-Absolute difference:  1.49e-08
-MSELoss_CP matches PyTorch
+component            | passed | failed |  status
+----------------------------------------------------
+_sum_to_shape        |      7 |      0 |  OK
+AddBackward          |      4 |      0 |  OK
+SubBackward          |      3 |      0 |  OK
+MulBackward          |      4 |      0 |  OK
+DivBackward          |      3 |      0 |  OK
+MatMulBackward       |      4 |      0 |  OK
+SumBackward          |      8 |      0 |  OK
+MeanBackward         |      8 |      0 |  OK
+ReshapeBackward      |      4 |      0 |  OK
+TransposeBackward    |      3 |      0 |  OK
+backward/zero_grad   |      4 |      0 |  OK
+----------------------------------------------------
+TOTAL                |     52 |      0 |
 
-log_softmax max difference:   2.38e-07
-TinyTorch CrossEntropy:       1.624034
-PyTorch  nn.CrossEntropyLoss: 1.624034
-Absolute difference:          1.19e-07
-CrossEntropy and log_softmax match PyTorch
-
-Loss with logits near 1000: 0.407606
-Naive exp(logits):          [[inf inf inf]]
-log-sum-exp keeps the loss finite while naive exp overflows
+Overall: 52 passed, 0 failed out of 52 checks.
 ```
 
 ### Efficiency results
 
-The timer performs warm-up calls and reports the median CPU forward-pass time per call. Tensors are created outside the timed region.
+This module's notebook is correctness-only; no timing benchmark was run. Every backward rule is a vectorized NumPy expression (no Python loops over elements), and `backward()` visits each node once in topological order, so the cost of a backward pass stays proportional to the cost of the forward pass.
 
-| Loss and input | TinyTorch | PyTorch | TinyTorch / PyTorch | Result |
-|---|---:|---:|---:|---|
-| MSELoss, `256` elements | `0.0046 ms` | `0.0090 ms` | `0.51x` | TinyTorch was about 2 times faster in this run |
-| CrossEntropy, batch `256`, `4` classes | `0.0393 ms` | `0.0352 ms` | `1.12x` | PyTorch was about 1.1 times faster |
-
-Both losses are close to PyTorch because their heavy work is vectorized NumPy rather than the Python-loop `matmul` used by the layer module. `MSELoss_CP` is a single mean-of-squared-differences expression and was slightly faster than PyTorch in this run, while `CrossEntropy` makes a few more array passes (`max`, `exp`, `sum`, `log`, and the gather of correct-class log-probabilities) and was marginally slower than PyTorch's fused kernel. These are tiny tensors on CPU, so the results should not be read as a general speed advantage; timings vary with tensor size, CPU, thread settings, and system load.
-
-All correctness checks pass.
+All 52 correctness checks pass.
 
 ## What I learned
 
-Loss functions usage between Cross Entropy loss and Binary Cross Entropy loss 
-
-Scenario: 
-
-`Binary Cross Entropy loss` - used in datasets where targets are independent binary decisions
-`Cross Entropy` - target consists of mutually exclusive classes 
-
-
 ## Resources
-
-Focal Loss for Dense Object Detection - Lin et al. (2017). Addresses class imbalance by reshaping the loss curve to down-weight easy examples. Shows how loss function design directly impacts model performance on real problems. - https://arxiv.org/abs/1708.02002

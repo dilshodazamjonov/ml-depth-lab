@@ -1,5 +1,6 @@
+import numpy as np
+
 from .tensor import Tensor_CP
-import numpy as np 
 
 
 class MSELoss_CP:
@@ -19,8 +20,10 @@ class MSELoss_CP:
         if num_elements == 0: 
             raise ValueError('Got a tensor with 0 elements')
 
-        output = Tensor_CP(np.mean((predictions.data - targets.data)**2))
-
+        difference = predictions - targets
+        squared_differences = difference * difference
+        output = squared_differences.mean()
+        
         return output
 
     def __call__(self, predictions: Tensor_CP, targets: Tensor_CP) -> Tensor_CP:
@@ -60,4 +63,5 @@ class CrossEntropy:
         cross_entropy = -np.mean(selected_log_probs)
 
         return Tensor_CP(cross_entropy)
-    
+
+

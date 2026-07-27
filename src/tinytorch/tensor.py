@@ -2,19 +2,6 @@ from typing import Any
 
 import numpy as np
 
-from .autograd import (
-    AddBackward,
-    DivBackward,
-    GetItemBackward,
-    MatMulBackward,
-    MeanBackward,
-    MulBackward,
-    ReshapeBackward,
-    SubBackward,
-    SumBackward,
-    TransposeBackward,
-)
-
 
 class Tensor_CP:
     """
@@ -31,7 +18,7 @@ class Tensor_CP:
         
         self.requires_grad = requires_grad
         self.grad = None
-        self._grad_fn = None
+        self._grad_fn: Function | None = None
 
         self.shape = self.data.shape
         self.size = self.data.size
@@ -340,30 +327,113 @@ class Tensor_CP:
 
 
     def backward(self, gradient=None):
-        """Compute gradients via backpropagation"""
+        """Compute gradients via backpropagation and topological ordering"""
 
         if not self.requires_grad:
             return
 
-        # Initialize gradient for scalar outputs 
+        # 1. Validate or create the initial gradient
         if gradient is None:
-            if self.data.size == 1:
+            if self.data.ndim == 0:
                 gradient = np.ones_like(self.data)
             else:
                 raise ValueError("backward() requires gradient for non-scalar tensors")
 
-        # Accumulate gradient (vectorized NumPy operation)
-        if self.grad is None:
-            self.grad = np.zeros_like(self.data)
+        else:
+            gradient = np.asarray(gradient, dtype=np.float32)
 
-        self.grad += gradient
+            if gradient.shape != self.shape:
+                raise ValueError(
+                    f"Expected gradient shape {self.shape} got {gradient.shape}"
+                )
 
-        # Propagate to parent tensors 
-        if hasattr(self, '_grad_fn') and self._grad_fn is not None:
-            grads = self._grad_fn.apply(gradient) # Compute input gradients using vectorized ops
+        # 2. Build topological ordering
+        visited = set()
+        topological_order = []
 
-            for tensor, grad in zip(self._grad_fn.saved_tensors, grads):
-                if isinstance(tensor, Tensor_CP) and tensor.requires_grad and grad is not None:
-                    tensor.backward(grad) # Recursive call
+        def dfs(tensor: Tensor_CP):
+            tensor_id = id(tensor)
+
+            if tensor_id in visited:
+                return
+
+            visited.add(tensor_id)
+
+            if tensor._grad_fn is not None:
+                for parent in tensor._grad_fn.saved_tensors:
+                    if isinstance(parent, Tensor_CP) and parent.requires_grad:
+                        dfs(parent)
+
+            topological_order.append(tensor)
+
+        dfs(self)
+        
+        gradients = {
+            id(self): gradient
+        }
+
+        for tensor in reversed(topological_order):
+
+            tensor_gradient = gradients.get(id(tensor))
+
+            if tensor_gradient is None:
+                continue
+
+            # Leaf tensor: Save its final gradient
+
+            if tensor._grad_fn is None:
+                if tensor.grad is None:
+                    tensor.grad = tensor_gradient.copy()
+                else:
+                    tensor.grad += tensor_gradient
+
+                continue
+
+            # Non-leaf tensor: calculate gradients for its parents
+            parent_gradients = tensor._grad_fn.apply(tensor_gradient)
+
+            for parent, parent_gradient in zip(
+                tensor._grad_fn.saved_tensors,
+                parent_gradients
+            ):
+                if (
+                    not isinstance(parent, Tensor_CP)
+                    or not parent.requires_grad
+                    or parent_gradient is None
+                ):
+                    continue
+
+                parent_id = id(parent)
+
+                if parent_id not in gradients:
+                    gradients[parent_id] = parent_gradient.copy()
+                else:
+                    gradients[parent_id] += parent_gradient
+
+    def zero_grad(self):
+        """Reset the accumulated gradient of this tensor."""
+        self.grad = None
+
+    
+                
+
+
+# Imported at the bottom to break the circular import with autograd.py:
+# autograd.py needs Tensor_CP for isinstance checks, so Tensor_CP must be
+# fully defined before autograd is loaded. The names below are only used
+# inside methods, which run after both modules are initialized.
+from .autograd import (
+    AddBackward,
+    DivBackward,
+    Function,
+    GetItemBackward,
+    MatMulBackward,
+    MeanBackward,
+    MulBackward,
+    ReshapeBackward,
+    SubBackward,
+    SumBackward,
+    TransposeBackward,
+)
 
             
