@@ -2,19 +2,25 @@
 
 ## Goal
 
-1. Implement the `Function` base class that enables gradient computation for all operations. 
-2. Build computation graphs that track dependencies between tensors during forward pass
-3. `AddBackward, MulBackward, MatmulBackward` - operation specific gradient rules
-4. `backward()` method on Tensor_CP reverse-mode differentiation
-5. `enable_autograd()` enhancement 
+1. Implement SDG with momentum to reduce oscillations and accelarete convergence in narrow valleys
+2. Master Adam's adaptive learning rate mechanism with first and second moment estimation
+3. Understand memory trade-offs(SDG: 2x memory vs Adam: 3x memory) and computational complexity
+4. Connect optimizer state management to checkpointing and distributed training considerations
+
+Implementation roadmap: 
+
+1. `Optimizer` - base class - common interface: zero_grad(), step()
+2. `SGD with momentum` - Velocity buffers to reduce oscillations 
+3. `Adam optimizer` - First and second moment esitmation with bias correction 
+4. `AdamW optimizer` - Decoupled wight decay for proper regulirization.
 
 ## Why it matters
 
-Every neural networks try to minimize the error causing loss parameters after each epoch, gradients are what give us the direction of the loss. And by using `Chain Rule` we can find those errors and minimize them. However, doing a chain rule by hand for a `Billion parameter model` is not only tedious, it's impossible. Hence, we utilize the trick called automatic differentiation.
+We can picture optimization as hiking in a foggy forest and you can feel the slope under your feet but cant see the valley. Each optimizer gives different strategies for you to choose as your next step to finding that slope. Overall, an optimizer is the rule that turns gradient into a parameter update
 
 ## Core concepts
 
-![alt text](06_autograd-diag-1.svg)
+![alt text](https://mlsysbook.ai/tinytorch/assets/images/diagrams/07_optimizers-diag-1.svg)
 
 ## Mathematics and rules
 
@@ -22,8 +28,9 @@ Every neural networks try to minimize the error causing loss parameters after ea
 
 ## What I implemented
 
-Classes:
-`AddBackward`, `MatMulBackward` and etc. All the operations that can be done under tensor for it to be able to run backward propagation.
+Classes: 
+1. `Cross Entropy and MSE`
+2. `Log_softmax` - Overflow saving numerical stability technique used in classification.
 
 ## Experiment
 
