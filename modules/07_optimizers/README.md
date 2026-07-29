@@ -24,6 +24,36 @@ We can picture optimization as hiking in a foggy forest and you can feel the slo
 
 ## Mathematics and rules
 
+1. `SGD - Stochastic Gradient Descent` - an optimization technique that works with a random subset of dataset in order to find best possible settings(Weights)
+
+   * `With weight decay enabled`: 
+
+   $$ \text{grad} = \text{grad} + \omega_i * \theta_\text{old} $$ 
+   and then data will be updated as
+   $$ \theta_\text{new} = \theta_\text{old} - \eta * grad $$
+
+   Where $\eta$ is a Learning Rate and $\theta_\text{old} \space \text{and} \space \theta_\text{new}$ are old and new data respectively.
+      
+    * `With momentum enabled` algorithm:
+
+   ```
+   1. obtain the old_buffer by id from momentum buffers if exist
+   2. if not add it to the momentum buffer with `np.zeros_like(tensor.data)`
+
+   ```
+
+   $$ \text{buffer}_\text{new} = \text{self.momentum} * \text{buffer}_\text{old} + \text{grad} $$
+
+   then grad equal to updated_buffer
+
+   * `No momentum and no weight decay`: 
+
+then data change will be done in an ordinary way using formula: 
+
+$$ \theta_\text{new} = \theta_\text{old} - \eta * grad $$
+
+
+2. `Adam - Adaptive moment estimation`
 
 
 ## What I implemented
