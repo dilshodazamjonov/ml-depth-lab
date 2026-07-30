@@ -16,7 +16,6 @@ class Optimizer:
                 raise TypeError(f"Expected params[..] to be {Tensor_CP} got {type(tensor)}")
 
         self.params = params
-        self.step_count = 0
 
     def zero_grad(self) -> None:
         """Zero gradient should set tensor's gradient to none"""
@@ -117,7 +116,7 @@ class Adam(Optimizer):
 
         self.first_moment_buffers = {}
         self.second_moment_buffers = {}
-        self.step_count = 0
+        self.step_counts = {}
 
         super().__init__(params)
 
@@ -125,8 +124,6 @@ class Adam(Optimizer):
 
         if not any(tensor.grad is not None for tensor in self.params):
             return
-
-        self.step_count += 1
 
         for tensor in self.params:
 
@@ -140,6 +137,9 @@ class Adam(Optimizer):
             # Classical Adam: weight decay is added to the gradient
             if self.weight_decay != 0.0:
                 gradient += self.weight_decay * tensor.data
+
+            tensor_step = self.step_counts.get(tensor_id, 0) + 1
+            self.step_counts[tensor_id] = tensor_step
 
             # Initialize this parameter's moment buffers
             if tensor_id not in self.first_moment_buffers:
@@ -167,16 +167,100 @@ class Adam(Optimizer):
             # Calculating the bias-corrected moments
             corrected_first_moment = (
                 updated_first_moment
-                / (1 - self.beta1 ** self.step_count)
+                / (1 - self.beta1 ** tensor_step)
             )
 
             corrected_second_moment = (
                 updated_second_moment
-                / (1 - self.beta2 ** self.step_count)
+                / (1 - self.beta2 ** tensor_step)
             )
 
             tensor.data -= (
                 self.lr * corrected_first_moment
                 / (np.sqrt(corrected_second_moment) + self.epsilon)
             )
+
+
+class AdamW(Adam):
+
+    """
+        Decoupled Adam - Weight decay does not accumulate inside the momentum or variance estimates.
+    """
+
+    def __init__(
+        self,
+        params: list[Tensor_CP],
+        lr=0.001,
+        betas=(0.9,0.999),
+        epsilon=1e-8,
+        weight_decay=0.01
+    ) -> None:
+
+        super().__init__(
+            params=params,
+            lr=lr,
+            betas=betas,
+            epsilon=epsilon,
+            weight_decay=weight_decay
+        )
+
+    def step(self) -> None:
+
+        for tensor in self.params:
+
+            if tensor.grad is None:
+                continue
+
+            tensor_id = id(tensor)
+
+            gradient = tensor.grad.copy()
+
+            if self.weight_decay != 0.0:
+                tensor.data *= 1 - self.lr * self.weight_decay
+
+            # Increment only this parametr's update count
+            tensor_step = self.step_counts.get(tensor_id, 0) + 1
+            self.step_counts[tensor_id] = tensor_step
+
+            # Initialize this parameter's moment buffers
+            if tensor_id not in self.first_moment_buffers:
+                self.first_moment_buffers[tensor_id] = np.zeros_like(tensor.data)
+
+            if tensor_id not in self.second_moment_buffers:
+                self.second_moment_buffers[tensor_id] = np.zeros_like(tensor.data)
+
+            old_first_moment = self.first_moment_buffers[tensor_id]
+            old_second_moment = self.second_moment_buffers[tensor_id]
+
+            updated_first_moment = (
+                self.beta1 * old_first_moment 
+                + (1 - self.beta1) * gradient 
+            )
+
+            updated_second_moment = (
+                self.beta2 * old_second_moment
+                + (1 - self.beta2) * gradient**2
+            )
+
+            self.first_moment_buffers[tensor_id] = updated_first_moment
+            self.second_moment_buffers[tensor_id] = updated_second_moment
+
+            # Calculating the bias-corrected moments
+            corrected_first_moment = (
+                updated_first_moment
+                / (1 - self.beta1 ** tensor_step)
+            )
+
+            corrected_second_moment = (
+                updated_second_moment
+                / (1 - self.beta2 ** tensor_step)
+            )
+
+            tensor.data -= (
+                self.lr * corrected_first_moment
+                / (np.sqrt(corrected_second_moment) + self.epsilon)
+            )
+
+
+        
 
