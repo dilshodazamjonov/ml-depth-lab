@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(where.exe python *)",
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(rm \"c:/work_dir/deeplearning/modules/04_loss_functions/experiment.ipynb\")",
+      "Bash(uv run *)"
+    ]
+  }
+}
