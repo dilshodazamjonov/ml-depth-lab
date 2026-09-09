@@ -9,3 +9,12 @@ wheels/
 # Virtual environments
 .venv
 .vscode
+
+# Claude Code
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+.mcp.json
+
+# AI agent configs
+.agents/
