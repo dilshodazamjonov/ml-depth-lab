@@ -43,6 +43,13 @@ class Node:
     def is_leaf(self):
         return self.value is not None
 
+def _most_common_label(y):
+
+    unique, counts = np.unique(y, return_counts=True)
+    most_freq = unique[np.argmax(counts)]
+                        
+    return most_freq
+            
 
 
 class DecisionTreeClassifierScratch:
@@ -100,33 +107,23 @@ class DecisionTreeClassifierScratch:
                     best_threshold = point
 
         return best_gain, best_idx, best_threshold
-                
-            
+
+    def _build_tree(self, X, y, depth=0):
+        pass
+
+
 """
-Next step: the recursive build function
+For _build_tree, here's the order to work in.
 
-This is the method that actually grows the tree. It takes X, y, and the current depth, and returns a Node.
+1. The signature. It's a method on the class, taking X, y, and depth. Give depth a default value so fit can call it with just X and y.
 
-Part A: the leaf helper (write this first)
+2. The three checks. Write each as its own if, or combine them with or. Either works, but separate ifs are easier to debug while you're learning:
 
-A small method that returns the most common label in y:
+Max depth: first make sure max_depth isn't None, then compare depth to it. Remember the is not None point, so that max_depth=0 isn't treated as "no limit."
+Too few samples: the number of samples is strictly less than min_samples_split.
+Pure node: y has exactly one distinct label.
 
-Use np.unique with counts, as in gini_impurity
-Find the position of the largest count (NumPy has an "argmax" function for this)
-Return the label at that position
-Part B: stopping checks
+3. What each check returns. A Node whose value is the result of your most-common-label function, passed as a keyword argument.
 
-At the start of the build function, return a leaf Node (using the helper) if any of these is true:
-
-max_depth is set and the current depth has reached it
-The number of samples is less than min_samples_split
-The node is pure: y has only one unique label
-
-For check 1, max_depth can be None, meaning no limit, so check for that before comparing.
-
-Part C: split and recurse (we'll do this after A and B)
-
-Once you've written Parts A and B, send them over and we'll go through the recursion together.
+4. Below the checks. Leave a comment like "Part C goes here" for now.
 """
-
-        
