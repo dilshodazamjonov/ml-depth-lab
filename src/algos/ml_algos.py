@@ -1,10 +1,5 @@
 """
 Binary Classification Decision Tree Implementation
-
-Stuff to do: 
-
-1. 
-
 """
 import numpy as np
 from numpy.typing import NDArray
@@ -28,9 +23,6 @@ def gini_impurity(y: NDArray):
     g = 1 - np.sum((counts/len(y))**2)
 
     return g
-
-gini_impurity(np.array([1, 0, 0, 1]))
-
 
 class Node:
     def __init__(self, feature_index=None, threshold=None, left=None, right=None, value=None) -> None:
@@ -63,11 +55,25 @@ class DecisionTreeClassifierScratch:
         self.root = None
 
     def fit(self, X, y):
-        pass
+        X, y = np.asarray(X), np.asarray(y)
+
+        self.root = self._build_tree(X, y)
+
+        return self
 
     def predict(self, X):
-        pass
+        X = np.asarray(X)
 
+        if self.root is None: 
+                raise RuntimeError("Method predict called before fit. Model first need to be fitted before calling the predict method.")
+        
+        preds = []
+        for row in X:
+            preds.append(self._traverse(row, self.root))
+
+        return np.asarray(preds)
+
+            
     def _best_split(self, X: NDArray, y: NDArray):
         """
         1. Loop over range(X.shape[1]) and get its sorted unique values 
@@ -133,3 +139,20 @@ class DecisionTreeClassifierScratch:
         right_child = self._build_tree(X_right, y_right, depth=depth+1)
 
         return Node(best_idx, best_threshold, left_child, right_child)
+
+
+    def _traverse(self, x:NDArray, node:Node):
+        """
+        Helper for the predict method.
+        """
+        while not node.is_leaf():
+            if x[node.feature_index] < node.threshold:
+
+                assert node.left is not None
+                node = node.left
+            else:
+
+                assert node.right is not None
+                node = node.right
+
+        return node.value
