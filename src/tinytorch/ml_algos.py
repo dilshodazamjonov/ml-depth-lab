@@ -108,22 +108,28 @@ class DecisionTreeClassifierScratch:
 
         return best_gain, best_idx, best_threshold
 
-    def _build_tree(self, X, y, depth=0):
-        pass
+    def _build_tree(self, X, y: NDArray, depth=0):
+        """
+        input: X,y - sample of the data and depth -> how many levels down there? 
+        output: Node (either question(compare 0 and 40 then go left or right) or the entire Node)
+        """        
 
+        if depth == self.max_depth or len(X) < self.min_samples_split or y.min() == y.max(): 
 
-"""
-For _build_tree, here's the order to work in.
+            return Node(value=_most_common_label(y))
 
-1. The signature. It's a method on the class, taking X, y, and depth. Give depth a default value so fit can call it with just X and y.
+        best_gain, best_idx, best_threshold = self._best_split(X, y)
 
-2. The three checks. Write each as its own if, or combine them with or. Either works, but separate ifs are easier to debug while you're learning:
+        if best_idx is None or best_gain < self.min_impurity_decrease:
+            return Node(value=_most_common_label(y))
 
-Max depth: first make sure max_depth isn't None, then compare depth to it. Remember the is not None point, so that max_depth=0 isn't treated as "no limit."
-Too few samples: the number of samples is strictly less than min_samples_split.
-Pure node: y has exactly one distinct label.
+        mask = X[:, best_idx] < best_threshold
 
-3. What each check returns. A Node whose value is the result of your most-common-label function, passed as a keyword argument.
+        X_left = X[mask]
+        X_right = X[~mask]
+        y_left, y_right = y[mask], y[~mask]
 
-4. Below the checks. Leave a comment like "Part C goes here" for now.
-"""
+        left_child = self._build_tree(X_left, y_left, depth=depth+1)
+        right_child = self._build_tree(X_right, y_right, depth=depth+1)
+
+        return Node(best_idx, best_threshold, left_child, right_child)
